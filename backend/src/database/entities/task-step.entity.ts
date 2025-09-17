@@ -1,4 +1,4 @@
-import { Column, Entity, JoinColumn, ManyToOne } from 'typeorm';
+import { Column, Entity, Index, JoinColumn, ManyToOne } from 'typeorm';
 
 import { BaseEntity } from './base.entity';
 import { TaskInstanceEntity } from './task-instance.entity';
@@ -12,7 +12,11 @@ export enum TaskStepStatus {
 }
 
 @Entity({ name: 'task_step' })
+@Index(['taskInstanceId', 'status'])
 export class TaskStepEntity extends BaseEntity {
+  @Column({ name: 'step_key', type: 'varchar', length: 100 })
+  stepKey!: string;
+
   @Column({ type: 'varchar', length: 255 })
   title!: string;
 
@@ -22,7 +26,7 @@ export class TaskStepEntity extends BaseEntity {
   @Column({ type: 'varchar', length: 50, default: TaskStepStatus.PENDING })
   status!: TaskStepStatus;
 
-  @Column({ name: 'display_order', type: 'int' })
+  @Column({ name: 'display_order', type: 'int', default: 0 })
   displayOrder!: number;
 
   @Column({ name: 'is_required', type: 'boolean', default: false })
@@ -31,17 +35,43 @@ export class TaskStepEntity extends BaseEntity {
   @Column({ name: 'due_at', type: 'timestamptz', nullable: true })
   dueAt?: Date | null;
 
+  @Column({ name: 'started_at', type: 'timestamptz', nullable: true })
+  startedAt?: Date | null;
+
   @Column({ name: 'completed_at', type: 'timestamptz', nullable: true })
   completedAt?: Date | null;
+
+  @Column({ type: 'jsonb', nullable: true, default: () => "'{}'::jsonb" })
+  payload?: Record<string, unknown> | null;
+
+  @Column({ name: 'lock_version', type: 'int', default: 0 })
+  lockVersion!: number;
+
+  @Column({ name: 'task_instance_id', type: 'uuid' })
+  taskInstanceId!: string;
 
   @ManyToOne(() => TaskInstanceEntity, (task) => task.steps, {
     nullable: false,
     onDelete: 'CASCADE',
   })
-  @JoinColumn({ name: 'task_id' })
+  @JoinColumn({ name: 'task_instance_id' })
   task!: TaskInstanceEntity;
 
-  @ManyToOne(() => UserEntity, (user) => user.assignedSteps, { nullable: true })
+  @Column({ name: 'assignee_id', type: 'uuid', nullable: true })
+  assigneeId?: string | null;
+
+  @ManyToOne(() => UserEntity, (user) => user.assignedSteps, {
+    nullable: true,
+    onDelete: 'SET NULL',
+  })
   @JoinColumn({ name: 'assignee_id' })
   assignee?: UserEntity | null;
+
+  @ManyToOne(() => UserEntity, { nullable: false, onDelete: 'RESTRICT' })
+  @JoinColumn({ name: 'created_by_id' })
+  createdBy!: UserEntity;
+
+  @ManyToOne(() => UserEntity, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'updated_by_id' })
+  updatedBy?: UserEntity | null;
 }
