@@ -6,10 +6,10 @@ import { TaskInstanceEntity } from './task-instance.entity';
 import { TaskStepEntity } from './task-step.entity';
 
 export enum UserRole {
-  GROUP_OFFICER = 'GROUP_OFFICER',
+  PGD_OFFICER = 'PGD_OFFICER',
   BRANCH_ADMIN = 'BRANCH_ADMIN',
   TASK_ASSIGNEE = 'TASK_ASSIGNEE',
-  SYSTEM_ADMIN = 'SYSTEM_ADMIN',
+  SYS_ADMIN = 'SYS_ADMIN',
 }
 
 @Entity({ name: 'app_user' })
