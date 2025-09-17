@@ -93,11 +93,16 @@ export class InitCoreSchema1736016000000 implements MigrationInterface {
             default: 'gen_random_uuid()',
           },
           { name: 'code', type: 'varchar', length: '100' },
-          { name: 'title', type: 'varchar', length: '255' },
+          { name: 'name', type: 'varchar', length: '255' },
           { name: 'description', type: 'text', isNullable: true },
-          { name: 'step_definitions', type: 'jsonb' },
-          { name: 'is_active', type: 'boolean', default: true },
           { name: 'version', type: 'int', default: 1 },
+          { name: 'latest', type: 'boolean', default: true },
+          { name: 'effective_from', type: 'timestamptz', isNullable: true },
+          { name: 'effective_to', type: 'timestamptz', isNullable: true },
+          { name: 'steps', type: 'jsonb', default: "'[]'::jsonb" },
+          { name: 'metadata', type: 'jsonb', isNullable: true, default: "'{}'::jsonb" },
+          { name: 'created_by_id', type: 'uuid' },
+          { name: 'updated_by_id', type: 'uuid', isNullable: true },
           { name: 'created_at', type: 'timestamptz', default: 'now()' },
           { name: 'updated_at', type: 'timestamptz', default: 'now()' },
           { name: 'deleted_at', type: 'timestamptz', isNullable: true },
@@ -105,14 +110,36 @@ export class InitCoreSchema1736016000000 implements MigrationInterface {
       }),
     );
 
-    await queryRunner.createIndex(
-      'task_template',
+    await queryRunner.createIndices('task_template', [
       new TableIndex({
-        name: 'IDX_task_template_code_unique',
-        columnNames: ['code'],
+        name: 'IDX_task_template_code_version_unique',
+        columnNames: ['code', 'version'],
         isUnique: true,
       }),
-    );
+      new TableIndex({
+        name: 'IDX_task_template_code',
+        columnNames: ['code'],
+      }),
+      new TableIndex({
+        name: 'IDX_task_template_latest',
+        columnNames: ['latest'],
+      }),
+    ]);
+
+    await queryRunner.createForeignKeys('task_template', [
+      new TableForeignKey({
+        columnNames: ['created_by_id'],
+        referencedColumnNames: ['id'],
+        referencedTableName: 'app_user',
+        onDelete: 'RESTRICT',
+      }),
+      new TableForeignKey({
+        columnNames: ['updated_by_id'],
+        referencedColumnNames: ['id'],
+        referencedTableName: 'app_user',
+        onDelete: 'SET NULL',
+      }),
+    ]);
 
     await queryRunner.createTable(
       new Table({
@@ -129,15 +156,21 @@ export class InitCoreSchema1736016000000 implements MigrationInterface {
           { name: 'title', type: 'varchar', length: '255' },
           { name: 'description', type: 'text', isNullable: true },
           { name: 'status', type: 'varchar', length: '50', default: "'DRAFT'" },
+          { name: 'status_reason', type: 'text', isNullable: true },
           { name: 'due_at', type: 'timestamptz', isNullable: true },
+          { name: 'published_at', type: 'timestamptz', isNullable: true },
           { name: 'submitted_at', type: 'timestamptz', isNullable: true },
           { name: 'completed_at', type: 'timestamptz', isNullable: true },
           { name: 'version', type: 'int', default: 1 },
-          { name: 'metadata', type: 'jsonb', isNullable: true },
-          { name: 'template_id', type: 'uuid', isNullable: true },
+          { name: 'lock_version', type: 'int', default: 0 },
+          { name: 'payload', type: 'jsonb', default: "'{}'::jsonb" },
+          { name: 'metadata', type: 'jsonb', isNullable: true, default: "'{}'::jsonb" },
+          { name: 'template_id', type: 'uuid' },
           { name: 'branch_id', type: 'uuid' },
-          { name: 'created_by_id', type: 'uuid' },
           { name: 'assignee_id', type: 'uuid', isNullable: true },
+          { name: 'reviewer_id', type: 'uuid', isNullable: true },
+          { name: 'created_by_id', type: 'uuid' },
+          { name: 'updated_by_id', type: 'uuid', isNullable: true },
           { name: 'created_at', type: 'timestamptz', default: 'now()' },
           { name: 'updated_at', type: 'timestamptz', default: 'now()' },
           { name: 'deleted_at', type: 'timestamptz', isNullable: true },
@@ -145,21 +178,32 @@ export class InitCoreSchema1736016000000 implements MigrationInterface {
       }),
     );
 
-    await queryRunner.createIndex(
-      'task_instance',
+    await queryRunner.createIndices('task_instance', [
       new TableIndex({
         name: 'IDX_task_instance_code_unique',
         columnNames: ['code'],
         isUnique: true,
       }),
-    );
+      new TableIndex({
+        name: 'IDX_task_instance_branch_status',
+        columnNames: ['branch_id', 'status'],
+      }),
+      new TableIndex({
+        name: 'IDX_task_instance_assignee_status',
+        columnNames: ['assignee_id', 'status'],
+      }),
+      new TableIndex({
+        name: 'IDX_task_instance_reviewer_status',
+        columnNames: ['reviewer_id', 'status'],
+      }),
+    ]);
 
     await queryRunner.createForeignKeys('task_instance', [
       new TableForeignKey({
         columnNames: ['template_id'],
         referencedColumnNames: ['id'],
         referencedTableName: 'task_template',
-        onDelete: 'SET NULL',
+        onDelete: 'RESTRICT',
       }),
       new TableForeignKey({
         columnNames: ['branch_id'],
@@ -174,7 +218,19 @@ export class InitCoreSchema1736016000000 implements MigrationInterface {
         onDelete: 'RESTRICT',
       }),
       new TableForeignKey({
+        columnNames: ['updated_by_id'],
+        referencedColumnNames: ['id'],
+        referencedTableName: 'app_user',
+        onDelete: 'SET NULL',
+      }),
+      new TableForeignKey({
         columnNames: ['assignee_id'],
+        referencedColumnNames: ['id'],
+        referencedTableName: 'app_user',
+        onDelete: 'SET NULL',
+      }),
+      new TableForeignKey({
+        columnNames: ['reviewer_id'],
         referencedColumnNames: ['id'],
         referencedTableName: 'app_user',
         onDelete: 'SET NULL',
@@ -192,15 +248,21 @@ export class InitCoreSchema1736016000000 implements MigrationInterface {
             generationStrategy: 'uuid',
             default: 'gen_random_uuid()',
           },
+          { name: 'step_key', type: 'varchar', length: '100' },
           { name: 'title', type: 'varchar', length: '255' },
           { name: 'description', type: 'text', isNullable: true },
           { name: 'status', type: 'varchar', length: '50', default: "'PENDING'" },
-          { name: 'display_order', type: 'int' },
+          { name: 'display_order', type: 'int', default: 0 },
           { name: 'is_required', type: 'boolean', default: false },
           { name: 'due_at', type: 'timestamptz', isNullable: true },
+          { name: 'started_at', type: 'timestamptz', isNullable: true },
           { name: 'completed_at', type: 'timestamptz', isNullable: true },
-          { name: 'task_id', type: 'uuid' },
+          { name: 'payload', type: 'jsonb', isNullable: true, default: "'{}'::jsonb" },
+          { name: 'lock_version', type: 'int', default: 0 },
+          { name: 'task_instance_id', type: 'uuid' },
           { name: 'assignee_id', type: 'uuid', isNullable: true },
+          { name: 'created_by_id', type: 'uuid' },
+          { name: 'updated_by_id', type: 'uuid', isNullable: true },
           { name: 'created_at', type: 'timestamptz', default: 'now()' },
           { name: 'updated_at', type: 'timestamptz', default: 'now()' },
           { name: 'deleted_at', type: 'timestamptz', isNullable: true },
@@ -208,15 +270,35 @@ export class InitCoreSchema1736016000000 implements MigrationInterface {
       }),
     );
 
+    await queryRunner.createIndex(
+      'task_step',
+      new TableIndex({
+        name: 'IDX_task_step_instance_status',
+        columnNames: ['task_instance_id', 'status'],
+      }),
+    );
+
     await queryRunner.createForeignKeys('task_step', [
       new TableForeignKey({
-        columnNames: ['task_id'],
+        columnNames: ['task_instance_id'],
         referencedColumnNames: ['id'],
         referencedTableName: 'task_instance',
         onDelete: 'CASCADE',
       }),
       new TableForeignKey({
         columnNames: ['assignee_id'],
+        referencedColumnNames: ['id'],
+        referencedTableName: 'app_user',
+        onDelete: 'SET NULL',
+      }),
+      new TableForeignKey({
+        columnNames: ['created_by_id'],
+        referencedColumnNames: ['id'],
+        referencedTableName: 'app_user',
+        onDelete: 'RESTRICT',
+      }),
+      new TableForeignKey({
+        columnNames: ['updated_by_id'],
         referencedColumnNames: ['id'],
         referencedTableName: 'app_user',
         onDelete: 'SET NULL',
@@ -351,15 +433,24 @@ export class InitCoreSchema1736016000000 implements MigrationInterface {
     await queryRunner.dropIndex('notification_log', 'IDX_notification_log_recipient');
     await queryRunner.dropTable('notification_log');
 
-    await queryRunner.dropTable('attachment');
+    await queryRunner.dropTable('attachment', true, true);
 
-    await queryRunner.dropTable('task_step');
+    await queryRunner.dropIndex('task_step', 'IDX_task_step_instance_status');
+    await queryRunner.dropTable('task_step', true, true);
 
-    await queryRunner.dropTable('task_instance');
+    await queryRunner.dropIndex('task_instance', 'IDX_task_instance_reviewer_status');
+    await queryRunner.dropIndex('task_instance', 'IDX_task_instance_assignee_status');
+    await queryRunner.dropIndex('task_instance', 'IDX_task_instance_branch_status');
+    await queryRunner.dropIndex('task_instance', 'IDX_task_instance_code_unique');
+    await queryRunner.dropTable('task_instance', true, true);
 
-    await queryRunner.dropTable('task_template');
+    await queryRunner.dropIndex('task_template', 'IDX_task_template_latest');
+    await queryRunner.dropIndex('task_template', 'IDX_task_template_code');
+    await queryRunner.dropIndex('task_template', 'IDX_task_template_code_version_unique');
+    await queryRunner.dropTable('task_template', true, true);
 
-    await queryRunner.dropTable('app_user');
+    await queryRunner.dropIndex('app_user', 'IDX_app_user_email_unique');
+    await queryRunner.dropTable('app_user', true, true);
 
     await queryRunner.dropIndex('branch', 'IDX_branch_code_unique');
     await queryRunner.dropTable('branch');
