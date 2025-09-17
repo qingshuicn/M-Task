@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { FindOneOptions, Repository } from 'typeorm';
 
 import { UserEntity } from '../entities';
 import { BaseRepository } from './base.repository';
@@ -9,5 +9,9 @@ import { BaseRepository } from './base.repository';
 export class UserRepository extends BaseRepository<UserEntity> {
   constructor(@InjectRepository(UserEntity) repository: Repository<UserEntity>) {
     super(repository);
+  }
+
+  findOne(options: FindOneOptions<UserEntity>): Promise<UserEntity | null> {
+    return this.repository.findOne(options);
   }
 }
