@@ -20,13 +20,23 @@ const typescriptConfigs = tseslint.config(
     languageOptions: {
       parserOptions: {
         projectService: {
-          allowDefaultProject: ['tsconfig.json', 'tsconfig.node.json']
+          allowDefaultProject: ['tsconfig.json', 'tsconfig.node.json', 'tsconfig.spec.json', 'backend/tsconfig.spec.json']
         },
         tsconfigRootDir: projectRoot
       }
     }
   }
 );
+
+const testOverrides = tseslint.config({
+  files: ['**/*.spec.ts'],
+  rules: {
+    '@typescript-eslint/no-unsafe-call': 'off',
+    '@typescript-eslint/no-unsafe-member-access': 'off',
+    '@typescript-eslint/no-unsafe-return': 'off',
+    '@typescript-eslint/no-unsafe-assignment': 'off'
+  }
+});
 
 const reactConfigs = tseslint.config({
   files: ['frontend/**/*.{ts,tsx}'],
@@ -51,5 +61,6 @@ export default tseslint.config(
   prettier,
   ignores,
   ...typescriptConfigs,
+  testOverrides,
   reactConfigs
 );
