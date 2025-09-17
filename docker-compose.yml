@@ -1,0 +1,58 @@
+services:
+  backend:
+    build:
+      context: .
+      target: runtime
+    command: pnpm --filter backend start:dev
+    working_dir: /app
+    volumes:
+      - .:/app
+    ports:
+      - '3000:3000'
+    environment:
+      NODE_ENV: development
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_USERNAME: mdtsk
+      DATABASE_PASSWORD: mdtsk
+      DATABASE_NAME: mdtsk
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_DB: 0
+      REDIS_KEY_PREFIX: mdtsk
+    depends_on:
+      - postgres
+      - redis
+
+  frontend:
+    image: node:20-alpine
+    working_dir: /app/frontend
+    command: sh -c "corepack enable && pnpm install && pnpm dev --host 0.0.0.0"
+    volumes:
+      - .:/app
+    ports:
+      - '5173:5173'
+    environment:
+      NODE_ENV: development
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: mdtsk
+      POSTGRES_PASSWORD: mdtsk
+      POSTGRES_DB: mdtsk
+    ports:
+      - '5432:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - '6379:6379'
+    volumes:
+      - redisdata:/data
+
+volumes:
+  pgdata:
+  redisdata:
