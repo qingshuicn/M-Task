@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "declaration": false,
+    "noEmit": true,
+    "types": ["node", "jest", "express"]
+  },
+  "include": ["src/**/*.ts", "src/**/*.spec.ts"],
+  "exclude": ["node_modules", "dist"]
+}
